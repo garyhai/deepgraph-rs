@@ -1,0 +1,9 @@
+[package]
+name = "deepgraph"
+version = "0.1.0"
+authors = ["Gary Hai <gary@neunit.com>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0.31"
+generational-arena = "0.2.8"
