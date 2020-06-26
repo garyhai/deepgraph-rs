@@ -13,9 +13,9 @@
 //
 */
 
-pub mod variants;
-pub mod graph;
 pub mod error;
+pub mod graph;
+pub mod variants;
 
 mod macros;
 

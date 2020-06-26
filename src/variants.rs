@@ -14,7 +14,7 @@
 */
 
 use crate::{
-    graph::{Scalar, Hyperedge},
+    graph::{Hyperedge, Scalar},
     scalar,
 };
 use std::{collections::BTreeMap, convert::TryFrom};
@@ -267,9 +267,7 @@ impl Hyperedge<Variant> for usize {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn simple_graph() {
-
-    }
+    fn simple_graph() {}
 }
 
 /*
