@@ -19,12 +19,14 @@ use crate::{
     graph::{Hyperedge, Scalar, Vector},
     scalar, Result,
 };
+use data_encoding::BASE64URL_NOPAD;
 use std::{
     cmp::{Ord, Ordering},
     collections::BTreeMap,
     convert::TryFrom,
     mem,
 };
+use uuid::Uuid;
 
 use SimpleValue::*;
 
@@ -310,7 +312,7 @@ impl Hyperedge<Variant> for &SimpleValue {
 
     fn get_mut(self, vector: &mut Variant) -> Option<&mut Self::Output> {
         match vector {
-            Variant::Table(x) => x.get_mut(self),
+            Variant::Table(x) => Some(x.entry(self.clone()).or_insert(Variant::Null)),
             Variant::Array(x) if self.is_integer() => {
                 self.as_usize().and_then(move |n| x.get_mut(n))
             }
@@ -331,7 +333,7 @@ impl Hyperedge<Variant> for SimpleValue {
     }
 }
 
-impl Vector<usize> for Variant {
+impl Vector<SimpleValue> for Variant {
     type Output = Result<Variant>;
 
     fn size(&self) -> Option<usize> {
@@ -344,68 +346,83 @@ impl Vector<usize> for Variant {
         })
     }
 
-    fn get(&self, n: usize) -> Self::Output {
-        n.get(self).map(Clone::clone).ok_or_else(|| Void.into())
+    fn get(&self, key: SimpleValue) -> Self::Output {
+        key.get(self).map(Clone::clone).ok_or_else(|| Void.into())
     }
 
-    fn put(&mut self, n: usize, v: Variant) -> Self::Output {
-        if let Some(x) = n.get_mut(self) {
+    fn put(&mut self, key: SimpleValue, v: Variant) -> Self::Output {
+        if let Some(x) = key.get_mut(self) {
             Ok(mem::replace(x, v))
         } else {
             Err(Void.into())
         }
     }
 
-    fn delete(&mut self, n: usize) -> Self::Output {
-        if let Variant::Array(x) = self {
-            if n < x.len() {
-                Ok(x.remove(n))
-            } else {
-                Err(fail!(Invalid, "out of bound"))
+    fn delete(&mut self, key: SimpleValue) -> Self::Output {
+        match self {
+            Variant::Array(x) => {
+                let n = key.as_usize().ok_or(Void)?;
+                if n < x.len() {
+                    Ok(x.remove(n))
+                } else {
+                    Err(fail!(Invalid, "out of bound"))
+                }
             }
-        } else {
-            Err(fail!(Invalid, "inner data is not an array"))
+            Variant::Table(x) => x.remove(&key).ok_or_else(|| Void.into()),
+            _ => Err(fail!(Invalid, "invalid data type")),
         }
     }
 
-    fn new(&mut self, v: Variant) -> Option<usize> {
-        if let Variant::Array(x) = self {
-            x.push(v);
-            Some(x.len())
-        } else {
-            None
+    fn new(&mut self, v: Variant) -> Self::Output {
+        match self {
+            Variant::Array(x) => {
+                x.push(v);
+                let key = SimpleValue::Integer(x.len() as i128);
+                Ok(Variant::Scalar(key))
+            }
+            Variant::Table(x) => {
+                let key = SimpleValue::Text(generate_key());
+                x.insert(key.clone(), v);
+                Ok(Variant::Scalar(key))
+            }
+            _ => Err(fail!(Invalid, "invalid inner type")),
         }
     }
 
-    fn get_ref(&self, n: usize) -> Option<&Variant> {
-        n.get(self)
+    fn get_ref(&self, key: SimpleValue) -> Option<&Variant> {
+        key.get(self)
     }
 
-    fn get_mut(&mut self, n: usize) -> Option<&mut Variant> {
-        n.get_mut(self)
+    fn get_mut(&mut self, key: SimpleValue) -> Option<&mut Variant> {
+        key.get_mut(self)
     }
 
-    fn with<F>(&self, n: usize, f: F) -> Self::Output
+    fn with<F>(&self, key: SimpleValue, f: F) -> Self::Output
     where
         F: FnOnce(&Variant) -> Self::Output,
     {
-        if let Some(x) = self.get_ref(n) {
+        if let Some(x) = self.get_ref(key) {
             f(x)
         } else {
             Err(Void.into())
         }
     }
 
-    fn with_mut<F>(&mut self, n: usize, f: F) -> Self::Output
+    fn with_mut<F>(&mut self, key: SimpleValue, f: F) -> Self::Output
     where
         F: FnOnce(&mut Variant) -> Self::Output,
     {
-        if let Some(x) = self.get_mut(n) {
+        if let Some(x) = self.get_mut(key) {
             f(x)
         } else {
             Err(Void.into())
         }
     }
+}
+
+pub fn generate_key() -> String {
+    let id = Uuid::new_v4();
+    BASE64URL_NOPAD.encode(id.as_bytes())
 }
 
 #[cfg(test)]

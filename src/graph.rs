@@ -73,6 +73,7 @@ pub trait Hyperedge<T: ?Sized> {
 pub trait Vector<I>
 where
     I: Hyperedge<Self>,
+    I::Output: Sized,
 {
     type Output;
 
@@ -84,13 +85,17 @@ where
         unimplemented!()
     }
 
-    fn put(&mut self, index: I, _: I::Output) -> Self::Output;
+    fn new(&mut self, _: I::Output) -> Self::Output {
+        unimplemented!()
+    }
+
+    fn put(&mut self, _index: I, _value: I::Output) -> Self::Output {
+        unimplemented!()
+    }
 
     fn delete(&mut self, _: I) -> Self::Output {
         unimplemented!()
     }
-
-    fn new(&mut self, _: I::Output) -> Option<I>;
 
     fn get_ref(&self, index: I) -> Option<&I::Output> {
         index.get(self)
