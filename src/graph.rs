@@ -76,13 +76,19 @@ where
 {
     type Output;
 
-    fn size(&self) -> Option<usize>;
+    fn size(&self) -> Option<usize> {
+        None
+    }
 
-    fn get(&self, _: I) -> Self::Output;
+    fn get(&self, _: I) -> Self::Output {
+        unimplemented!()
+    }
 
     fn put(&mut self, index: I, _: I::Output) -> Self::Output;
 
-    fn delete(&mut self, _: I) -> Self::Output;
+    fn delete(&mut self, _: I) -> Self::Output {
+        unimplemented!()
+    }
 
     fn new(&mut self, _: I::Output) -> Option<I>;
 
@@ -94,13 +100,19 @@ where
         index.get_mut(self)
     }
 
-    fn with<F>(&self, index: I, f: F) -> Self::Output
+    fn with<F>(&self, _index: I, _func: F) -> Self::Output
     where
-        F: FnOnce(&I::Output) -> Self::Output;
+        F: FnOnce(&I::Output) -> Self::Output,
+    {
+        unimplemented!()
+    }
 
-    fn with_mut<F>(&mut self, index: I, f: F) -> Self::Output
+    fn with_mut<F>(&mut self, _index: I, _func: F) -> Self::Output
     where
-        F: FnOnce(&mut I::Output) -> Self::Output;
+        F: FnOnce(&mut I::Output) -> Self::Output,
+    {
+        unimplemented!()
+    }
 }
 
 /// 通用的Graph行为，参考了GraphQL的规格。
