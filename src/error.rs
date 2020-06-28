@@ -36,7 +36,7 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
-/// Already exists.
+/// Uncategorized exception
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Exception;
 impl Display for Exception {
@@ -45,6 +45,26 @@ impl Display for Exception {
     }
 }
 impl Error for Exception {}
+
+/// Item is null, unexisted or not found.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Void;
+impl Display for Void {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "void")
+    }
+}
+impl Error for Void {}
+
+/// Invalid format or out of bound.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Invalid;
+impl Display for Invalid {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "invalid")
+    }
+}
+impl Error for Invalid {}
 
 /*
 ```

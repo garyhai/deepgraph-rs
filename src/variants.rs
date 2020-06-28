@@ -14,13 +14,16 @@
 */
 
 use crate::{
-    graph::{Hyperedge, Scalar},
-    scalar,
+    error::{Invalid, Void},
+    fail,
+    graph::{Hyperedge, Scalar, Vector},
+    scalar, Result,
 };
 use std::{
-    cmp::{Ord, Ordering, PartialEq, PartialOrd},
+    cmp::{Ord, Ordering},
     collections::BTreeMap,
     convert::TryFrom,
+    mem,
 };
 
 use SimpleValue::*;
@@ -265,6 +268,7 @@ impl Ord for SimpleValue {
     }
 }
 
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Variant {
     Null,
     Scalar(SimpleValue),
@@ -324,6 +328,83 @@ impl Hyperedge<Variant> for SimpleValue {
 
     fn get_mut(self, vector: &mut Variant) -> Option<&mut Self::Output> {
         (&self).get_mut(vector)
+    }
+}
+
+impl Vector<usize> for Variant {
+    type Output = Result<Variant>;
+
+    fn size(&self) -> Option<usize> {
+        Some(match self {
+            Variant::Null => 0,
+            Variant::Scalar(_) => 1,
+            Variant::Array(x) => x.len(),
+            Variant::Table(x) => x.len(),
+            Variant::Index(_) => return None,
+        })
+    }
+
+    fn get(&self, n: usize) -> Self::Output {
+        n.get(self).map(Clone::clone).ok_or_else(|| Void.into())
+    }
+
+    fn put(&mut self, n: usize, v: Variant) -> Self::Output {
+        if let Some(x) = n.get_mut(self) {
+            Ok(mem::replace(x, v))
+        } else {
+            Err(Void.into())
+        }
+    }
+
+    fn delete(&mut self, n: usize) -> Self::Output {
+        if let Variant::Array(x) = self {
+            if n < x.len() {
+                Ok(x.remove(n))
+            } else {
+                Err(fail!(Invalid, "out of bound"))
+            }
+        } else {
+            Err(fail!(Invalid, "inner data is not an array"))
+        }
+    }
+
+    fn new(&mut self, v: Variant) -> Option<usize> {
+        if let Variant::Array(x) = self {
+            x.push(v);
+            Some(x.len())
+        } else {
+            None
+        }
+    }
+
+    fn get_ref(&self, n: usize) -> Option<&Variant> {
+        n.get(self)
+    }
+
+    fn get_mut(&mut self, n: usize) -> Option<&mut Variant> {
+        n.get_mut(self)
+    }
+
+    fn with<F>(&self, n: usize, f: F) -> Self::Output
+    where
+        F: FnOnce(&Variant) -> Self::Output,
+    {
+        if let Some(x) = self.get_ref(n) {
+            f(x)
+        } else {
+            Err(Void.into())
+        }
+    }
+
+    fn with_mut<F>(&mut self, n: usize, f: F) -> Self::Output
+    where
+        F: FnOnce(&mut Variant) -> Self::Output,
+    {
+        if let Some(x) = self.get_mut(n) {
+            f(x)
+        } else {
+            Err(Void.into())
+        }
     }
 }
 

@@ -76,9 +76,9 @@ where
 {
     type Output;
 
-    fn size(&self) -> usize;
+    fn size(&self) -> Option<usize>;
 
-    fn get(&mut self, _: I) -> Self::Output;
+    fn get(&self, _: I) -> Self::Output;
 
     fn put(&mut self, index: I, _: I::Output) -> Self::Output;
 
@@ -94,9 +94,13 @@ where
         index.get_mut(self)
     }
 
-    fn with<F: FnOnce(&I::Output)>(&self, index: I, f: F) -> Self::Output;
+    fn with<F>(&self, index: I, f: F) -> Self::Output
+    where
+        F: FnOnce(&I::Output) -> Self::Output;
 
-    fn with_mut<F: FnOnce(&mut I::Output)>(&mut self, index: I, f: F) -> Self::Output;
+    fn with_mut<F>(&mut self, index: I, f: F) -> Self::Output
+    where
+        F: FnOnce(&mut I::Output) -> Self::Output;
 }
 
 /// 通用的Graph行为，参考了GraphQL的规格。
