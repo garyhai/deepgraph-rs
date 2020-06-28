@@ -17,7 +17,11 @@ use crate::{
     graph::{Hyperedge, Scalar},
     scalar,
 };
-use std::{collections::BTreeMap, convert::TryFrom};
+use std::{
+    cmp::{Ord, Ordering, PartialEq, PartialOrd},
+    collections::BTreeMap,
+    convert::TryFrom,
+};
 
 use SimpleValue::*;
 
@@ -89,12 +93,25 @@ pub trait PlainScalar:
     }
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum SimpleValue {
     Bool(bool),
     Integer(i128),
     Float(f64),
     Text(String),
     Bytes(Vec<u8>),
+}
+
+impl SimpleValue {
+    fn weight(&self) -> usize {
+        match self {
+            Bool(_) => 1,
+            Integer(_) => 2,
+            Float(_) => 3,
+            Text(_) => 4,
+            Bytes(_) => 5,
+        }
+    }
 }
 
 impl PlainScalar for SimpleValue {}
@@ -236,11 +253,23 @@ impl Scalar<Vec<u8>> for SimpleValue {
     }
 }
 
+impl Eq for SimpleValue {}
+
+impl Ord for SimpleValue {
+    fn cmp(&self, other: &SimpleValue) -> Ordering {
+        if let Some(ord) = self.partial_cmp(other) {
+            ord
+        } else {
+            self.weight().cmp(&other.weight())
+        }
+    }
+}
+
 pub enum Variant {
     Null,
     Scalar(SimpleValue),
     Array(Vec<Variant>),
-    Map(BTreeMap<SimpleValue, Variant>),
+    Table(BTreeMap<SimpleValue, Variant>),
     Index(SimpleValue),
 }
 
@@ -261,6 +290,40 @@ impl Hyperedge<Variant> for usize {
         } else {
             None
         }
+    }
+}
+
+impl Hyperedge<Variant> for &SimpleValue {
+    type Output = Variant;
+
+    fn get(self, vector: &Variant) -> Option<&Self::Output> {
+        match vector {
+            Variant::Table(x) => x.get(self),
+            Variant::Array(x) if self.is_integer() => self.as_usize().and_then(|n| x.get(n)),
+            _ => None,
+        }
+    }
+
+    fn get_mut(self, vector: &mut Variant) -> Option<&mut Self::Output> {
+        match vector {
+            Variant::Table(x) => x.get_mut(self),
+            Variant::Array(x) if self.is_integer() => {
+                self.as_usize().and_then(move |n| x.get_mut(n))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl Hyperedge<Variant> for SimpleValue {
+    type Output = Variant;
+
+    fn get(self, vector: &Variant) -> Option<&Self::Output> {
+        (&self).get(vector)
+    }
+
+    fn get_mut(self, vector: &mut Variant) -> Option<&mut Self::Output> {
+        (&self).get_mut(vector)
     }
 }
 
