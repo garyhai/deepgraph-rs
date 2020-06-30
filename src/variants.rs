@@ -25,6 +25,7 @@ use std::{
     collections::BTreeMap,
     convert::TryFrom,
     mem,
+    ops::{Index, IndexMut},
 };
 use uuid::Uuid;
 
@@ -417,6 +418,23 @@ impl Vector<SimpleValue> for Variant {
         } else {
             Err(Void.into())
         }
+    }
+}
+
+impl<K: Into<SimpleValue>> Index<K> for Variant {
+    type Output = Variant;
+    fn index(&self, key: K) -> &Variant {
+        let key = key.into();
+        self.get_ref(key)
+            .expect("value of the index must be existed")
+    }
+}
+
+impl<K: Into<SimpleValue>> IndexMut<K> for Variant {
+    fn index_mut(&mut self, key: K) -> &mut Variant {
+        let key = key.into();
+        self.get_mut(key)
+            .expect("value of the index must be existed")
     }
 }
 
